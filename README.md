@@ -47,6 +47,6 @@ Download R Markdown file to access script. There will be parts in the script (hi
 Note: Raw sequencing data must be demultiplexed, primers must be removed and forward and reverse fastq files contain reads in matched order prior to using script.
 
 # Output
-Running through the script will process raw paired end V4V5 16S Amplicon sequencing data through the DADA2 pipeline to create a ASV table (with assigned taxa for each unique ASV sequence), modify the DADA2 outputs to be able to import/use with phyloseq, factor based on provided metadata, then graph the relative abundance data for Phylum, Family and Genus levels using geom_bar. 
+Running through the script will process raw paired end V4V5 16S Amplicon sequencing data through the DADA2 pipeline to create a ASV table (with assigned taxa for each unique ASV sequence), modify the DADA2 outputs to be able to import/use with phyloseq, factor based on provided metadata, then graph the relative abundance data for Phylum, and Genus levels using geom_bar using the following examples. 
 
 Note: Based on my research questions, various graphs are sorted/facet wrapped by sample types and/or date (which is why there is various factoring scripts prior to graphing to ensure a proper order)

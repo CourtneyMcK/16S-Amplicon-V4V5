@@ -1,7 +1,7 @@
 ---
-title: "DADA2_Pipeline_V4V5"
+title: "DADA_pipeline_V4V5_ver2"
 author: "Courtney McKellar"
-date: "2025-11-02"
+date: "2026-10-19"
 output: html_document
 ---
 
@@ -9,9 +9,14 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-#Loading Libraries for DADA2 
+#Loading Libraries for DADA2 and Phyloseq pipelines
 ```{r}
 library(dada2)
+library(phyloseq)
+library(Biostrings)
+library(ggplot2)
+library(Polychrome)
+library(tidyverse)
 ```
 
 #Set the path to the working directory where the file is
@@ -22,11 +27,11 @@ library(dada2)
 #!!!!!!!!STOP HERE and CHANGE WORKING DIRECTORY BEFORE PRESSING PLAY
 
 ```{r}
-setwd("C:/Users/cjm30/Bioinformatics/V4V5_metagenomics/McKellarV4V5/")
+setwd("C:/Users/cjm30/Bioinformatics/V4V5_metagenomics/McKellarV4V5")
 ```
 
 ```{r}
-path <- "C:/Users/cjm30/Bioinformatics/V4V5_test/"
+path <- "C:/Users/cjm30/Bioinformatics/V4V5_metagenomics/McKellarV4V5/McKellarV4V5_August"
 list.files(path)
 ```
 
@@ -80,14 +85,11 @@ names(filtRs) <- sample.names
 #maxN = will throw out the sequence if there is an N in the sequence (cannot tell what the nucleotide is)
 #truncLen = where you are cutting your sequences (need to change depending on the quality) - first number is for forward reads, second number is for reverse reads
 #maxEE = setting the amount of errors allowed when making a paired end read - first number is for forward reads, second number is for reverse reads
-
 #Recommended: At least a 50 nucleotide overlap between the forward and reverse reads
-
-#can use Figaro to help with where to trim (version 1.1.2)-don't use for ITS, as it can be variable in read length and don't need the truncLen function (the purpose of Figaro)
 
 #!!!!!!!!STOP HERE and CHANGE PARAMETERS BEFORE PRESSING PLAY
 ```{r}
-out <- filterAndTrim(fnFs, filtFs, fnRs, filtRs,trimLeft =c(19,20), truncLen=c(245,225),
+out <- filterAndTrim(fnFs, filtFs, fnRs, filtRs,trimLeft =c(19,20), truncLen=c(279,191),
               maxN=0, maxEE=c(1,1), truncQ=2, rm.phix=TRUE,
               compress=TRUE, multithread=FALSE) 
 # On Windows set multithread=FALSE
@@ -116,6 +118,7 @@ plotErrors(errR, nominalQ=TRUE)
 ```{r}
 dadaFs <- dada(filtFs, err=errF, multithread=TRUE)
 ```
+
 #Inspect the returned data-class for the unique forward reads
 ```{r}
 dadaFs[[1]]
@@ -131,9 +134,7 @@ dadaRs <- dada(filtRs, err=errR, multithread=TRUE)
 dadaRs[[1]]
 ```
 
-
 #To merge paired reads and look merged reads of the first sample
-#Note: with the new MiSeq, it has a hard time distinguishing between C and unidentified nucleotide. Look for strands of C in the samples; if so, contact the sequencing facility
 ```{r}
 mergers <- mergePairs(dadaFs, filtFs, dadaRs, filtRs, verbose=TRUE)
 
@@ -153,8 +154,9 @@ dim(seqtab)
 ```{r}
 table(nchar(getSequences(seqtab)))
 ```
-#to cut to have a specific range of amplicon lengths (expected length is 390-420, so I will cut from 393 to 421)
-seqtab2 <- seqtab[,nchar(colnames(seqtab)) %in% 370:375]
+
+#to cut to have a specific range of amplicon lengths (expected length is 390-420, so I will cut from 354 to 418)
+seqtab2 <- seqtab[,nchar(colnames(seqtab)) %in% 354:418]
 table(nchar(getSequences(seqtab2)))
 
 #To remove ASV chimeras (artifacts within sequencing); the percentage represents the amount of sequences that remain after removing the chimeras
@@ -165,7 +167,6 @@ seqtab.nochim_V4V5 <- removeBimeraDenovo(seqtab2, method="consensus", multithrea
 dim(seqtab.nochim_V4V5)
 sum(seqtab.nochim_V4V5)/sum(seqtab2)
 ```
-
 
 #Track reads through the pipeline
 #Will tell you the number of reads that made it through each step
@@ -203,22 +204,30 @@ head(taxa.print)
 #Will change everytime!!!-Not in chunk
 
 write.csv (taxa_V4V5, file =
-"C:/Users/cjm30/Bioinformatics/V4V5_test/taxa_V4V5_practice.csv")
+"C:/Users/cjm30/Bioinformatics/V4V5_metagenomics/taxa_V4V5_Aug_25.csv")
 
 write.csv (seqtab.nochim_V4V5, file =
-"C:/Users/cjm30/Bioinformatics/V4V5_test/seqtab.nochim_V4V5_practice.csv")
+"C:/Users/cjm30/Bioinformatics/V4V5_metagenomics/seqtab.nochim_V4V5_Aug_25.csv")
 
 write.csv (track_V4V5, file =
-"C:/Users/cjm30/Bioinformatics/V4V5_test/track_V4V5_practice.csv")
+"C:/Users/cjm30/Bioinformatics/V4V5_metagenomics/track_V4V5_Aug_25.csv")
 
-###if you are importing from a CSV file-start here
+###START HERE AFTER DADA2 PIPELINE IS COMPLETE###
+###if you are importing from a CSV file
 #change file path for personal computer
 taxa_DADA2_import <- read.csv (file =
+"C:/Users/cjm30/Bioinformatics/V4V5_metagenomics/McKellarV4V5/taxa_V4V5_Aug_25.csv")
+
+seqtab.nochim_DADA2_import <- read.csv (file = "C:/Users/cjm30/Bioinformatics/V4V5_metagenomics/McKellarV4V5/seqtab.nochim_V4V5_Aug_25.csv", header = FALSE)
+
+track_DADA2_import <- read.csv (file = "C:/Users/cjm30/Bioinformatics/V4V5_metagenomics/McKellarV4V5/track_V4V5_Aug_25.csv")
+
+taxa_DADA2_import_2 <- read.csv (file =
 "C:/Users/cjm30/Bioinformatics/V4V5_metagenomics/McKellarV4V5/taxa_V4V5_Nov_7.csv")
 
-seqtab.nochim_DADA2_import <- read.csv (file = "C:/Users/cjm30/Bioinformatics/V4V5_metagenomics/McKellarV4V5/seqtab.nochim_V4V5_Nov_7.csv", header = FALSE)
+seqtab.nochim_DADA2_import_2 <- read.csv (file = "C:/Users/cjm30/Bioinformatics/V4V5_metagenomics/McKellarV4V5/seqtab.nochim_V4V5_Nov_7.csv", header = FALSE)
 
-track_DADA2_import <- read.csv (file = "C:/Users/cjm30/Bioinformatics/V4V5_metagenomics/McKellarV4V5/track_V4V5_Nov_7.csv")
+track_DADA2_import_2 <- read.csv (file = "C:/Users/cjm30/Bioinformatics/V4V5_metagenomics/McKellarV4V5/track_V4V5_Nov_7.csv")
 
 #these next steps will be used to mainly modify the seqtab.nochim file and taxa file to be able to use them within the package phyloseq
 
@@ -229,6 +238,9 @@ track_DADA2_import <- read.csv (file = "C:/Users/cjm30/Bioinformatics/V4V5_metag
 ```{r}
 flipped_seqtab.nochim<- as.data.frame(t(seqtab.nochim_DADA2_import))
 view(flipped_seqtab.nochim)
+
+flipped_seqtab.nochim_2<- as.data.frame(t(seqtab.nochim_DADA2_import_2))
+view(flipped_seqtab.nochim_2)
 ```
 
 #In the flipped CSV, the header becomes random letters and moves the sample names to the next row; need to copy the first row and then removing it
@@ -237,6 +249,9 @@ view(flipped_seqtab.nochim)
 #step 1: copy the first row 
 colnames(flipped_seqtab.nochim) <- flipped_seqtab.nochim[1,]
 view(flipped_seqtab.nochim)
+
+colnames(flipped_seqtab.nochim_2) <- flipped_seqtab.nochim_2[1,]
+view(flipped_seqtab.nochim_2)
 ```
 
 ```{r}
@@ -244,29 +259,33 @@ view(flipped_seqtab.nochim)
 flipped_seqtab.nochim <- flipped_seqtab.nochim[-1,]
 View(flipped_seqtab.nochim)
 #Now inspect again and ensure it is correct
+
+flipped_seqtab.nochim_2 <- flipped_seqtab.nochim_2[-1,]
+View(flipped_seqtab.nochim_2)
+#Now inspect again and ensure it is correct
 ```
 
 #next, we want to change the nucleic acid sequences of the ASVs to their name (ASV1, ASV2, ASV3...)
 ```{r}
 rownames(flipped_seqtab.nochim) <- paste0("ASV", 1:nrow(flipped_seqtab.nochim))
 
+rownames(flipped_seqtab.nochim_2) <- paste0("ASV", 1:nrow(flipped_seqtab.nochim_2))
+
 #and remove the sequences column: save as flipped_seqtab.nochim_forself 
 flipped_seqtab.nochim_forself <- flipped_seqtab.nochim[,-1]
+
+flipped_seqtab.nochim_forself_2 <- flipped_seqtab.nochim_2[,-1]
 ```
 
 #then save the transposed seqtab.nochim file and ASV-labelled transposed seqtab.nochim file as a CSV to have as a backup
 ```{r}
-write.csv(flipped_seqtab.nochim, file = "C:/Users/cjm30/Bioinformatics/V4V5_metagenomics/McKellarV4V5/flipped_seqtab.nochim_V4V5_Nov7.csv") #change file path for personal computer
+write.csv(flipped_seqtab.nochim, file = "C:/Users/cjm30/Bioinformatics/V4V5_metagenomics/McKellarV4V5/flipped_seqtab.nochim_V4V5_Aug25.csv") #change file path for personal computer
 
-write.csv(flipped_seqtab.nochim_forself, file = "C:/Users/cjm30/Bioinformatics/V4V5_metagenomics/McKellarV4V5/flipped_seqtab.nochim_forself_V4V5_Nov7.csv")#change file path for personal computer
-```
+write.csv(flipped_seqtab.nochim_2, file = "C:/Users/cjm30/Bioinformatics/V4V5_metagenomics/McKellarV4V5/flipped_seqtab.nochim_V4V5_Nov7.csv") #change file path for personal computer
 
-#Now combine your transposed seqtab.nochim file with your taxa data file to name a combined file (object labeled OTUabund)
-#save the combined file as a CSV for your personal use
-```{r}
-OTUabund<-cbind(flipped_seqtab.nochim,taxa_DADA2_import)
+write.csv(flipped_seqtab.nochim_forself, file = "C:/Users/cjm30/Bioinformatics/V4V5_metagenomics/McKellarV4V5/flipped_seqtab.nochim_forself_V4V5_Aug25.csv")#change file path for personal computer
 
-write.csv(OTUabund,file= "C:/Users/cjm30/Bioinformatics/V4V5_metagenomics/McKellarV4V5/OTUabund_V4V5_Nov7.csv")#change file path for personal computer
+write.csv(flipped_seqtab.nochim_forself_2, file = "C:/Users/cjm30/Bioinformatics/V4V5_metagenomics/McKellarV4V5/flipped_seqtab.nochim_forself_V4V5_Nov7.csv")#change file path for personal computer
 ```
 
 #Finally-before starting phyloseq, we need to manually remove the sequences of the taxa file
@@ -274,50 +293,57 @@ write.csv(OTUabund,file= "C:/Users/cjm30/Bioinformatics/V4V5_metagenomics/McKell
 ```{r}
 taxa_DADA2_import<-taxa_DADA2_import[-1]
 view(taxa_DADA2_import) 
+
+taxa_DADA2_import_2<-taxa_DADA2_import_2[-1]
+view(taxa_DADA2_import_2) 
 ```
 
-##END OF the DADA2 Pipeline 
-
-#start of Phyloseq pipeline (again make sure that you are using BioConductor version 3.21 for phyloseq and Biostrings)
-#packages needed for the Phyloseq pipeline (version 1.52.0)
-```{r}
-library(phyloseq)
-library(Biostrings)
-library(ggplot2)
-library(tidyverse)
-```
-
+###START OF PHYLOSEQ PIPELINE###
 #Before we can graph, we need to do some additional table manipulation before we can use phyloseq
 #First- we need to convert the taxa object into a matrix and call it the object taxmat
 ```{r}
 taxmat <- as.matrix(taxa_DADA2_import)
+
+taxmat_2 <- as.matrix(taxa_DADA2_import_2)
 ```
 
 #Next-remove the ASV sequences from the first column of the transposed seqtab.nochim and call it the object otumat
 ```{r}
 otumat <-flipped_seqtab.nochim[,-1]
 view(otumat)
+
+otumat_2 <-flipped_seqtab.nochim_2[,-1]
+view(otumat_2)
 ```
 
 #Then-We want to convert all the files to matrix format so they can be used in phyloseq
 ```{r}
 otumat <- as.matrix(otumat)
 taxmat <-as.matrix(taxmat)
+
+otumat_2 <- as.matrix(otumat_2)
+taxmat_2 <-as.matrix(taxmat_2)
 ```
 
 #We can inspect that otumat and taxmats are both a matrix format
 ```{r}
 class(otumat)
 class(taxmat)
-```
 
+class(otumat_2)
+class(taxmat_2)
+```
 #Finally-Make sure the row names are ASV for both files 
 ```{r}
 rownames(otumat) <- paste0("ASV", 1:nrow(otumat))
 rownames(taxmat) <- paste0("ASV", 1:nrow(otumat))
+
+rownames(otumat_2) <- paste0("ASV", 1:nrow(otumat_2))
+rownames(taxmat_2) <- paste0("ASV", 1:nrow(otumat_2))
  
 #then make sure that R recognizes that the otumat data is numeric, not character data
 class(otumat)<-"numeric"
+class(otumat_2)<-"numeric"
 ```
 
 #now that we have matrices we are good to use, we can use phyloseq to continue analysis!
@@ -326,11 +352,15 @@ class(otumat)<-"numeric"
 #this command will tell phyloseq where our ASVs are
 ```{r}
 OTU = otu_table(otumat, taxa_are_rows = TRUE)
+
+OTU_2 = otu_table(otumat_2, taxa_are_rows = TRUE)
 ```
  
 #this command tell phyloseq where our taxa are
 ```{r}
 TAX = tax_table(taxmat)
+
+TAX_2 = tax_table(taxmat_2)
 ```
 
 #now we tell phyloseq to put it all together (sample names, OTU and taxa), will create an object physeq, which we can use to graph 
@@ -339,141 +369,89 @@ physeq = phyloseq(OTU, TAX)
 physeq
 sample_names(physeq)
 samplenames<-sample_names(physeq)
+
+physeq_2 = phyloseq(OTU_2, TAX_2)
+physeq_2
+sample_names(physeq_2)
+samplenames<-sample_names(physeq_2)
 ```
-#to help with faceting, we can add metadata with our samples
-#First-read in the csv with the metadata
+
+#to merge the two phyloseq objects together
 ```{r}
+#first need to label the ASVs between the two different runs
+taxa_names(physeq) <- paste0("p1_", taxa_names(physeq))
+taxa_names(physeq_2) <- paste0("p2_", taxa_names(physeq_2))
+
+#merge the two using merge_phyloseq function
+merged_physeq <- merge_phyloseq(physeq, physeq_2)
+```
+
+#to help with faceting, we can add metadata with our samples
+```{r}
+#import metadata csv
 metadata <- read.csv (file = "C:/Users/cjm30/Bioinformatics/V4V5_metagenomics/McKellarV4V5/metadata.csv")#change file path for personal computer
 
 #convert the row names to the sample names
-rownames(metadata) <- sample_names(physeq)
+rownames(metadata) <- sample_names(merged_physeq)
 
 #merge the metadata with the physeq data
 SAM <- sample_data(metadata)
-physeq_merge <- merge_phyloseq(physeq, SAM)
+physeq_merge <- merge_phyloseq(merged_physeq, SAM)
+```
 
-#to reorder the samples
-desired_order <- c("BRLW_F25", "BRLB_F25", "B7_F25", "B17_F25","B25_F25", "N7_1_F25", "N7_2_F25", "N17_1_F25", "N17_2_F25", "N25_1_F25", "N25_2_F25","BRLW_J16","BRLB_J16", "B7_J16","B20_J16","B7_PEG_H20", "B7_PEG_R2A", "B20_PEG_H20", "B20_PEG_R2A")
+#reorder the samples with desired sample order and date-will help with graphing
+```{r}
+desired_order <- c("R2D2_F25","POTWT_F25","BRLW_F25", "BRLB_F25", "B7_F25","B7_F25_R2", "B17_F25","B17_F25_R2","B25_F25", "N7_1_F25","N7_1_F25_R2", "N7_2_F25","N7_2_F25_R2", "N17_1_F25", "N17_2_F25", "N25_1_F25","N25_2_F25","R2D2_J16","POTWT_J16","BRLW_J16","BRLB_J16", "B7_J16","B20_J16","N7_1_J16","N7_2_J16","N20_1_J16",
+"N20_2_J16","B7_PEG_H20", "B7_PEG_R2A", "B20_PEG_H20", "B20_PEG_R2A")
 desired_date_order <- c("25-Feb", "16-Jul")
 ```
 
-###Now we are ready to graph!
+###STACKED BAR GRAPHS###
+#Example for Phylum
 
-#if we want to do this for Phyla
-
-#Now we want to look at the relative abundance of the phyla level in the samples 
-#We need to glom together taxa in the phyla column so we can graph them together.
-#then, we can take the relative abundance, will do for all samples
-#this will only plot the top 20/30 phyla; any other phyla not in the top 20/30 will be put in other
+#to calculate % relative abundance at the phylum level
 ```{r}
 ps_phylum <- tax_glom(physeq_merge, "Phylum")
 ps_phylum_relabun <- transform_sample_counts(ps_phylum, function(ASV) ASV / sum(ASV) * 100)
-
-taxa_abundance_table_phylum <- psmelt(ps_phylum_relabun)
-taxa_abundance_table_phylum$Phylum <- factor(taxa_abundance_table_phylum$Phylum)
 ```
-
 
 #Save the Abundance table for order for easy access
 ```{r}
-write.csv(taxa_abundance_table_phylum, file = "C:/Users/cjm30/Bioinformatics/V4V5_metagenomics/McKellarV4V5/taxa_abundance_table_phylum_V4V5_Nov7_top_adjusted.csv") #change file path for personal computer
+taxa_abundance_table_phylum <- psmelt(ps_phylum_relabun)
+taxa_abundance_table_phylum$Phylum <- factor(taxa_abundance_table_phylum$Phylum)
+
+write.csv(taxa_abundance_table_phylum, file = "C:/Users/cjm30/Bioinformatics/V4V5_metagenomics/McKellarV4V5/taxa_abundance_table_phylum_V4V5_all_aug27.csv") #change file path for personal computer
 ```
 
-#all sample re-shuffle
+#this is an example for reorganizing the top 20 phyla in all sample types, will assist with graphing
 ```{r}
-ps_phylum_all <- subset_samples(ps_phylum_relabun, Location %in% c("Boom Filter","Boom Filter_July", "Nozzle", "Boom Recirculation Loop"))
+#subset samples (if needed) from phyloseq object 
+ps_phylum_all <- subset_samples(ps_phylum_relabun, Location %in% c("Glass Bead Filters","Boom Filter","Boom Filter_July", "Nozzle", "Boom Recirculation Loop","Potable Water Tank"))
 
 #to reorder the samples to follow the desired order
+#Sorts from most abundant to least abundant; identify the top 20 phyla
 top_phylum_all <- names(sort(taxa_sums(ps_phylum_all), decreasing = TRUE))[1:20]
+#convert top 20 names to character from ASV names
 top_phylum_labels_all <- as.character(tax_table(ps_phylum)[top_phylum_all, "Phylum"])
+#psmelt phyloseq object to factor/be able to graph in ggplot2
 ps_phylum_all <- psmelt(ps_phylum_all)
+#factor based on desired order or date
 ps_phylum_all$ID <- factor(ps_phylum_all$ID, levels = desired_order)
 ps_phylum_all$Date <- factor(ps_phylum_all$Date, levels = desired_date_order)
 
-#to reshuffle to only plot the top phylum, the rest will go into "other"
+#to reshuffle to only plot the top genera, the rest will go into "other"
+#will rename all phyla not in the top 20 as "other"
 ps_phylum_all$Phylum <- ifelse(ps_phylum_all$Phylum %in% top_phylum_labels_all, as.character(ps_phylum_all$Phylum), "Other")
-ps_phylum_all$Phylum <- factor(ps_phylum_all$Phylum, levels = c(setdiff(top_phylum_labels_all, "Other"), "Other"))
-ps_phylum_all_glommed <- ps_phylum_all %>%
-  group_by(Sample, ID, Phylum, Location, Date, Type) %>%
-  summarise(Abundance = sum(Abundance), .groups = "drop")
+#shifts the other category to appear last in the dataset so that it appears last in the graph
+ps_phylum_all$Phylum <- factor(ps_phylum_all$Phylum, levels = c(base::setdiff(top_phylum_labels_all, "Other"), "Other"))
+#reorganize so that the ps_phylum_all data.frame has six groups, based on the metadata and add the "other" entries into one entry, with the abundances, added together; make tibble
+ps_phylum_all <- ps_phylum_all %>%
+group_by(Sample, ID, Phylum, Location, Date, Type) %>%
+summarise(Abundance = sum(Abundance), .groups = "drop")
 ```
 
-#can filter by location-nozzle
+#to generate a colour palette for graphs
 ```{r}
-ps_phylum_nozzle <- subset_samples(ps_phylum_relabun, Location == "Nozzle")
-
-#to reorder the samples to follow the desired order
-top_phylum_nozzle <- names(sort(taxa_sums(ps_phylum_nozzle), decreasing = TRUE))[1:30]
-top_phylum_labels_nozzle <- as.character(tax_table(ps_phylum)[top_phylum_nozzle, "Phylum"])
-ps_phylum_nozzle <- psmelt(ps_phylum_nozzle)
-ps_phylum_nozzle$ID <- factor(ps_phylum_nozzle$ID, levels = desired_order)
-
-#to reshuffle to only plot the top phylum, the rest will go into "other"
-ps_phylum_nozzle$Phylum <- ifelse(ps_phylum_nozzle$Phylum %in% top_phylum_labels_nozzle, as.character(ps_phylum_nozzle$Phylum), "Other")
-ps_phylum_nozzle$Phylum <- factor(ps_phylum_nozzle$Phylum, levels = c(setdiff(top_phylum_labels_nozzle, "Other"), "Other"))
-ps_phylum_nozzle_glommed <- ps_phylum_nozzle %>%
-  group_by(Sample,ID, Phylum, Location, Date, Type) %>%
-  summarise(Abundance = sum(Abundance), .groups = "drop")
-```
-#boom filter
-```{r}
-ps_phylum_boom_filter <- subset_samples(ps_phylum_relabun, Location %in% c("Boom Filter", "Boom Filter_July"))
-
-#to reorder the samples to follow the desired order
-top_phylum_boom_filter <- names(sort(taxa_sums(ps_phylum_boom_filter), decreasing = TRUE))[1:30]
-top_phylum_labels_boom_filter <- as.character(tax_table(ps_phylum)[top_phylum_boom_filter, "Phylum"])
-ps_phylum_boom_filter <- psmelt(ps_phylum_boom_filter)
-ps_phylum_boom_filter$ID <- factor(ps_phylum_boom_filter$ID, levels = desired_order)
-ps_phylum_boom_filter$Date <- factor(ps_phylum_boom_filter$Date, levels = desired_date_order)
-
-#to reshuffle to only plot the top phylum, the rest will go into "other"
-ps_phylum_boom_filter$Phylum <- ifelse(ps_phylum_boom_filter$Phylum %in% top_phylum_labels_boom_filter, as.character(ps_phylum_boom_filter$Phylum), "Other")
-ps_phylum_boom_filter$Phylum <- factor(ps_phylum_boom_filter$Phylum, levels = c(setdiff(top_phylum_labels_boom_filter, "Other"), "Other"))
-ps_phylum_boom_filter_glommed <- ps_phylum_boom_filter %>%
-  group_by(Sample,ID, Phylum, Location, Date, Type) %>%
-  summarise(Abundance = sum(Abundance), .groups = "drop")
-```
-
-#boom filters and PEG
-```{r}
-ps_phylum_boom_PEG <- subset_samples(ps_phylum_relabun, Location %in% c("Boom Filter_July", "PEG"))
-
-#to reorder the samples to follow the desired order
-top_phylum_boom_PEG <- names(sort(taxa_sums(ps_phylum_boom_PEG), decreasing = TRUE))[1:30]
-top_phylum_labels_boom_PEG <- as.character(tax_table(ps_phylum)[top_phylum_boom_PEG, "Phylum"])
-ps_phylum_boom_PEG <- psmelt(ps_phylum_boom_PEG)
-ps_phylum_boom_PEG$ID <- factor(ps_phylum_boom_PEG$ID, levels = desired_order)
-
-#to reshuffle to only plot the top phylum, the rest will go into "other"
-ps_phylum_boom_PEG$Phylum <- ifelse(ps_phylum_boom_PEG$Phylum %in% top_phylum_labels_boom_PEG, as.character(ps_phylum_boom_PEG$Phylum), "Other")
-ps_phylum_boom_PEG$Phylum <- factor(ps_phylum_boom_PEG$Phylum, levels = c(setdiff(top_phylum_labels_boom_PEG, "Other"), "Other"))
-ps_phylum_boom_PEG_glommed <- ps_phylum_boom_PEG %>%
-  group_by(Sample,ID, Phylum, Location, Date, Type) %>%
-  summarise(Abundance = sum(Abundance), .groups = "drop")
-```
-
-#boom recirculation loop
-```{r}
-ps_phylum_boom_RL <- subset_samples(ps_phylum_relabun, Location == "Boom Recirculation Loop")
-
-#to reorder the samples to follow the desired order
-top_phylum_boom_RL <- names(sort(taxa_sums(ps_phylum_boom_RL), decreasing = TRUE))[1:30]
-top_phylum_labels_boom_RL <- as.character(tax_table(ps_phylum)[top_phylum_boom_RL, "Phylum"])
-ps_phylum_boom_RL <- psmelt(ps_phylum_boom_RL)
-ps_phylum_boom_RL$ID <- factor(ps_phylum_boom_RL$ID, levels = desired_order)
-ps_phylum_boom_RL$Date <- factor(ps_phylum_boom_RL$Date, levels = desired_date_order)
-
-#to reshuffle to only plot the top phylum, the rest will go into "other"
-ps_phylum_boom_RL$Phylum <- ifelse(ps_phylum_boom_RL$Phylum %in% top_phylum_labels_boom_RL, as.character(ps_phylum_boom_RL$Phylum), "Other")
-ps_phylum_boom_RL$Phylum <- factor(ps_phylum_boom_RL$Phylum, levels = c(setdiff(top_phylum_labels_boom_RL, "Other"), "Other"))
-ps_phylum_boom_RL_glommed <- ps_phylum_boom_RL %>%
-  group_by(Sample,ID, Phylum, Location, Date, Type) %>%
-  summarise(Abundance = sum(Abundance), .groups = "drop")
-```
-
-#to generate a colour palette for all graph
-```{r}
-# Get unique phylum-to help make colour
 palette <- c(
   "#A6CEE3", "#1F78B4", "#B2DF8A", "#33A02C", "#FB9A99",
   "#E31A1C", "#FDBF6F", "#FF7F00", "#CAB2D6", "#6A3D9A",
@@ -481,481 +459,75 @@ palette <- c(
   "#FB8072", "#80B1D3", "#FDB462", "#B3DE69", "#FCCDE5",
   "#cccccc" 
 )
-
-palette_2 <- c(
-  "#A6CEE3", "#1F78B4", "#B2DF8A", "#33A02C", "#FB9A99", "#E31A1C", "#FDBF6F", "#FF7F00",
-  "#CAB2D6", "#6A3D9A", "#FFFF99", "#B15928", "#8DD3C7", "#FFFFB3", "#BEBADA", "#FB8072",
-  "#80B1D3", "#FDB462", "#B3DE69", "#FCCDE5", "#D9D9D9", "#BC80BD", "#CCEBC5", "#FFED6F",
-  "#1B9E77", "#D95F02", "#7570B3", "#E7298A", "#66A61E", "#E6AB02",
-  "#cccccc"
-)
 ```
 
-#phylum graph-will all samples
+#this is an example graph for the top 20 phyla in all sample
 ```{r}
-#graph
-ggplot(ps_phylum_all_glommed, aes(x = ID, y = Abundance)) +
-  geom_bar(aes(fill = Phylum), stat = "identity") +
-  facet_wrap(Date ~ ., strip.position = "right", ncol = 1, scales = "free_y", space = "free_y")+
-  theme_minimal(base_size = 12) +
-  labs(title = "Relative Abundance of Top 20 Phyla in All Sampled Biofilms and Water Samples from All Locations", x = "Sample",y = "Relative Abundance (%)") +
-  scale_fill_manual(values = palette)+
-  coord_flip()+
-  guides(fill = guide_legend(ncol = 2))+
-  theme(
-axis.text.y = element_text(angle = 0, hjust = 1),
-axis.text.x = element_text(angle = 0),
-strip.text.y = element_text(angle = 0),
-panel.background = element_rect(fill = "grey90", color = NA),
-strip.background = element_rect(fill = "grey85", color = NA)
+ggplot(ps_phylum_all, aes(x = ID, y = Abundance)) +
+geom_bar(aes(fill = Phylum), stat = "identity", position = position_stack(reverse = TRUE)) +
+facet_wrap(Date ~ ., strip.position = "right", ncol = 1, scales = "free_y", space = "free_y")+
+theme_minimal(base_size = 12) +
+labs(title = "Relative Abundance of Top 20 Phyla in All Sampled Biofilms and Water Samples from All Locations", x = "Sample",y = "Relative Abundance (%)") +
+scale_fill_manual(values = palette)+
+coord_flip()+
+guides(fill = guide_legend(ncol = 2))+
+theme(
+  axis.text.y = element_text(angle = 0, hjust = 1),
+  axis.text.x = element_text(angle = 0),
+  strip.text.y = element_text(angle = 0),
+  panel.background = element_rect(fill = "grey95", color = NA),
+  strip.background = element_rect(fill = "grey85", color = NA)
 )
 
-ggsave("all_phylum_plot_20_adjusted.png", plot = last_plot(), width = 13, height = 6, dpi = 300)
+#to save graph
+ggsave("all_phylum_plot_20_aug27.png", plot = last_plot(), width = 13, height = 6, dpi = 300)
 ```
 
-#now, make a geom_bar of your relative abundance-Nozzle
-```{r}
-#graph
-ggplot(ps_phylum_nozzle_glommed, aes(x = ID, y = Abundance)) +
-  geom_bar(aes(fill = Phylum),stat = "identity") +
-  theme_minimal(base_size = 12) +
-  labs(title = "Relative Abundance of the Top 30 Genera in Sampled Biofilms from Nozzles",x = "Sample",y = "Relative Abundance (%)") +
-  scale_fill_manual(values = palette_2) +
-  coord_flip()+
-  guides(fill = guide_legend(ncol = 2)) +
-  theme(
-axis.text.y = element_text(angle = 0, hjust = 1),
-axis.text.x = element_text(angle = 0),
-panel.background = element_rect(fill = "grey90", color = NA),
-strip.background = element_rect(fill = "grey85", color = NA)
-)
+#Example for Genus
 
-ggsave("nozzles_phylum_plot_top30_adjusted.png", plot = last_plot(), width = 13, height = 6, dpi = 300)
-```
-
-#now, make a geom_bar of your relative abundance-Boom filter
-```{r}
-#graph
-ggplot(ps_phylum_boom_filter_glommed, aes(x = ID, y = Abundance)) +
-  geom_bar(aes(fill = Phylum), stat = "identity") +
-  theme_minimal(base_size = 12) +
-  facet_wrap(Date ~ ., strip.position = "right", ncol = 1, scales = "free_y")+
-  labs(title = "Relative Abundance of the Top 30 Phyla in Sampled Biofilms from Boom Filters", x = "Sample", y = "Relative Abundance (%)") +
-  scale_fill_manual(values = palette_2) +
-  coord_flip()+
-  guides(fill = guide_legend(ncol = 2)) +
-  theme(
-axis.text.y = element_text(angle = 0, hjust = 1),
-axis.text.x = element_text(angle = 0),
-strip.text.y = element_text(angle = 0),
-panel.background = element_rect(fill = "grey90", color = NA),
-strip.background = element_rect(fill = "grey85", color = NA)
-)
-
-ggsave("boom_filter_phylum_plot_top30_adjusted_.png", plot = last_plot(), width = 13, height = 6, dpi = 300)
-```
-
-#now, make a geom_bar of your relative abundance-Boom RP
-```{r}
-#graph
-ggplot(ps_phylum_boom_RL_glommed, aes(x = ID, y = Abundance)) +
-  geom_bar(aes(fill = Phylum), stat = "identity") +
-  facet_wrap(Date ~ ., strip.position = "right", ncol = 1, scales = "free_y")+
-  theme_minimal(base_size = 12) +
-  labs(title = "Relative Abundance of the Top 30 Phyla in Sampled Biofilms and Water Samples from Boom Recirculation Loop", x = "Sample", y = "Relative Abundance (%)") +
-  scale_fill_manual(values = palette_2) +
-  coord_flip()+
-  guides(fill = guide_legend(ncol = 2)) +
-  theme(
-axis.text.y = element_text(angle = 0, hjust = 1),
-axis.text.x = element_text(angle = 0),
-strip.text.y = element_text(angle = 0),
-panel.background = element_rect(fill = "grey90", color = NA),
-strip.background = element_rect(fill = "grey85", color = NA)
-)
-
-ggsave("boom_RL_phylum_plot_top30_adjusted.png", plot = last_plot(), width = 13, height = 6, dpi = 300)
-```
-
-#now, make a geom_bar of your relative abundance-Boom Filter and PEGs
-```{r}
-#graph
-ggplot(ps_phylum_boom_PEG_glommed, aes(x = ID, y = Abundance)) +
-  geom_bar(aes(fill = Phylum), stat = "identity") +
-  facet_wrap(Location ~ ., strip.position = "right", ncol = 1, scales = "free_y")+
-  theme_minimal(base_size = 12) +
-  labs(title = "Relative Abundance of the Top 30 Phyla Comparsion Between Boom Filter Swabs and PEG-Formed Biofilms", x = "Sample", y = "Relative Abundance (%)") +
-  scale_fill_manual(values = palette_2) +
-  coord_flip()+
-  guides(fill = guide_legend(ncol = 2)) +
-  theme(
-axis.text.y = element_text(angle = 0, hjust = 1),
-axis.text.x = element_text(angle = 0),
-strip.text.y = element_text(angle = 0),
-panel.background = element_rect(fill = "grey90", color = NA),
-strip.background = element_rect(fill = "grey85", color = NA)
-)
-
-ggsave("boom_PEG_phylum_plot_top30adjusted.png", plot = last_plot(), width = 13, height = 6, dpi = 300)
-```
-
-
-#if we want to do this for Family
-
-#Now we want to look at the relative abundance of the family level in the samples 
-#We need to glom together taxa in the family column so we can graph them together.
-#then, we can take the relative abundance, will do for all samples
-#this will only plot the top 20/30 families; any other families not in the top 20/30 will be put in other
-```{r}
-ps_family <- tax_glom(physeq_merge, "Family")
-ps_family_relabun <- transform_sample_counts(ps_family, function(ASV) ASV / sum(ASV) * 100)
-
-taxa_abundance_table_family <- psmelt(ps_family_relabun)
-taxa_abundance_table_family$Family <- factor(taxa_abundance_table_family$Family)
-```
-
-
-#Save the Abundance table for order for easy access
-```{r}
-write.csv(taxa_abundance_table_family, file = "C:/Users/cjm30/Bioinformatics/V4V5_metagenomics/McKellarV4V5/taxa_abundance_table_family_V4V5_Nov7_top_adjusted.csv") #change file path for personal computer
-```
-
-#all sample re-shuffle
-```{r}
-ps_family_all <- subset_samples(ps_family_relabun, Location %in% c("Boom Filter","Boom Filter_July", "Nozzle", "Boom Recirculation Loop"))
-
-#to reorder the samples to follow the desired order
-top_family_all <- names(sort(taxa_sums(ps_family_all), decreasing = TRUE))[1:20]
-top_family_labels_all <- as.character(tax_table(ps_family)[top_family_all, "Family"])
-ps_family_all <- psmelt(ps_family_all)
-ps_family_all$ID <- factor(ps_family_all$ID, levels = desired_order)
-ps_family_all$Date <- factor(ps_family_all$Date, levels = desired_date_order)
-
-#to reshuffle to only plot the top family, the rest will go into "other"
-ps_family_all$Family <- ifelse(ps_family_all$Family %in% top_family_labels_all, as.character(ps_family_all$Family), "Other")
-ps_family_all$Family <- factor(ps_family_all$Family, levels = c(setdiff(top_family_labels_all, "Other"), "Other"))
-ps_family_all_glommed <- ps_family_all %>%
-  group_by(Sample, ID, Family, Location, Date, Type) %>%
-  summarise(Abundance = sum(Abundance), .groups = "drop")
-```
-
-#can filter by location-nozzle
-```{r}
-ps_family_nozzle <- subset_samples(ps_family_relabun, Location == "Nozzle")
-
-#to reorder the samples to follow the desired order
-top_family_nozzle <- names(sort(taxa_sums(ps_family_nozzle), decreasing = TRUE))[1:30]
-top_family_labels_nozzle <- as.character(tax_table(ps_family)[top_family_nozzle, "Family"])
-ps_family_nozzle <- psmelt(ps_family_nozzle)
-ps_family_nozzle$ID <- factor(ps_family_nozzle$ID, levels = desired_order)
-
-#to reshuffle to only plot the top family, the rest will go into "other"
-ps_family_nozzle$Family <- ifelse(ps_family_nozzle$Family %in% top_family_labels_nozzle, as.character(ps_family_nozzle$Family), "Other")
-ps_family_nozzle$Family <- factor(ps_family_nozzle$Family, levels = c(setdiff(top_family_labels_nozzle, "Other"), "Other"))
-ps_family_nozzle_glommed <- ps_family_nozzle %>%
-  group_by(Sample,ID, Family, Location, Date, Type) %>%
-  summarise(Abundance = sum(Abundance), .groups = "drop")
-```
-#boom filter
-```{r}
-ps_family_boom_filter <- subset_samples(ps_family_relabun, Location %in% c("Boom Filter", "Boom Filter_July"))
-
-#to reorder the samples to follow the desired order
-top_family_boom_filter <- names(sort(taxa_sums(ps_family_boom_filter), decreasing = TRUE))[1:30]
-top_family_labels_boom_filter <- as.character(tax_table(ps_family)[top_family_boom_filter, "Family"])
-ps_family_boom_filter <- psmelt(ps_family_boom_filter)
-ps_family_boom_filter$ID <- factor(ps_family_boom_filter$ID, levels = desired_order)
-ps_family_boom_filter$Date <- factor(ps_family_boom_filter$Date, levels = desired_date_order)
-
-#to reshuffle to only plot the top family, the rest will go into "other"
-ps_family_boom_filter$Family <- ifelse(ps_family_boom_filter$Family %in% top_family_labels_boom_filter, as.character(ps_family_boom_filter$Family), "Other")
-ps_family_boom_filter$Family <- factor(ps_family_boom_filter$Family, levels = c(setdiff(top_family_labels_boom_filter, "Other"), "Other"))
-ps_family_boom_filter_glommed <- ps_family_boom_filter %>%
-  group_by(Sample,ID, Family, Location, Date, Type) %>%
-  summarise(Abundance = sum(Abundance), .groups = "drop")
-```
-
-#boom filters and PEG
-```{r}
-ps_family_boom_PEG <- subset_samples(ps_family_relabun, Location %in% c("Boom Filter_July", "PEG"))
-
-#to reorder the samples to follow the desired order
-top_family_boom_PEG <- names(sort(taxa_sums(ps_family_boom_PEG), decreasing = TRUE))[1:30]
-top_family_labels_boom_PEG <- as.character(tax_table(ps_family)[top_family_boom_PEG, "Family"])
-ps_family_boom_PEG <- psmelt(ps_family_boom_PEG)
-ps_family_boom_PEG$ID <- factor(ps_family_boom_PEG$ID, levels = desired_order)
-
-#to reshuffle to only plot the top family, the rest will go into "other"
-ps_family_boom_PEG$Family <- ifelse(ps_family_boom_PEG$Family %in% top_family_labels_boom_PEG, as.character(ps_family_boom_PEG$Family), "Other")
-ps_family_boom_PEG$Family <- factor(ps_family_boom_PEG$Family, levels = c(setdiff(top_family_labels_boom_PEG, "Other"), "Other"))
-ps_family_boom_PEG_glommed <- ps_family_boom_PEG %>%
-  group_by(Sample,ID, Family, Location, Date, Type) %>%
-  summarise(Abundance = sum(Abundance), .groups = "drop")
-```
-
-#boom recirculation loop
-```{r}
-ps_family_boom_RL <- subset_samples(ps_family_relabun, Location == "Boom Recirculation Loop")
-
-#to reorder the samples to follow the desired order
-top_family_boom_RL <- names(sort(taxa_sums(ps_family_boom_RL), decreasing = TRUE))[1:30]
-top_family_labels_boom_RL <- as.character(tax_table(ps_family)[top_family_boom_RL, "Family"])
-ps_family_boom_RL <- psmelt(ps_family_boom_RL)
-ps_family_boom_RL$ID <- factor(ps_family_boom_RL$ID, levels = desired_order)
-ps_family_boom_RL$Date <- factor(ps_family_boom_RL$Date, levels = desired_date_order)
-
-#to reshuffle to only plot the top family, the rest will go into "other"
-ps_family_boom_RL$Family <- ifelse(ps_family_boom_RL$Family %in% top_family_labels_boom_RL, as.character(ps_family_boom_RL$Family), "Other")
-ps_family_boom_RL$Family <- factor(ps_family_boom_RL$Family, levels = c(setdiff(top_family_labels_boom_RL, "Other"), "Other"))
-ps_family_boom_RL_glommed <- ps_family_boom_RL %>%
-  group_by(Sample,ID, Family, Location, Date, Type) %>%
-  summarise(Abundance = sum(Abundance), .groups = "drop")
-```
-
-#to generate a colour palette for all graph
-```{r}
-# Get unique family-to help make colour
-palette <- c(
-  "#A6CEE3", "#1F78B4", "#B2DF8A", "#33A02C", "#FB9A99",
-  "#E31A1C", "#FDBF6F", "#FF7F00", "#CAB2D6", "#6A3D9A",
-  "#FFFF99", "#B15928", "#8DD3C7", "#FFFFB3", "#BEBADA",
-  "#FB8072", "#80B1D3", "#FDB462", "#B3DE69", "#FCCDE5",
-  "#cccccc" 
-)
-
-palette_2 <- c(
-  "#A6CEE3", "#1F78B4", "#B2DF8A", "#33A02C", "#FB9A99", "#E31A1C", "#FDBF6F", "#FF7F00",
-  "#CAB2D6", "#6A3D9A", "#FFFF99", "#B15928", "#8DD3C7", "#FFFFB3", "#BEBADA", "#FB8072",
-  "#80B1D3", "#FDB462", "#B3DE69", "#FCCDE5", "#D9D9D9", "#BC80BD", "#CCEBC5", "#FFED6F",
-  "#1B9E77", "#D95F02", "#7570B3", "#E7298A", "#66A61E", "#E6AB02",
-  "#cccccc"
-)
-```
-
-#family graph-will all samples
-```{r}
-#graph
-ggplot(ps_family_all_glommed, aes(x = ID, y = Abundance)) +
-  geom_bar(aes(fill = Family), stat = "identity") +
-  facet_wrap(Date ~ ., strip.position = "right", ncol = 1, scales = "free_y", space = "free_y")+
-  theme_minimal(base_size = 12) +
-  labs(title = "Relative Abundance of Top 20 Families in All Sampled Biofilms and Water Samples from All Locations", x = "Sample",y = "Relative Abundance (%)") +
-  scale_fill_manual(values = palette)+
-  coord_flip()+
-  guides(fill = guide_legend(ncol = 2))+
-  theme(
-axis.text.y = element_text(angle = 0, hjust = 1),
-axis.text.x = element_text(angle = 0),
-strip.text.y = element_text(angle = 0),
-panel.background = element_rect(fill = "grey90", color = NA),
-strip.background = element_rect(fill = "grey85", color = NA)
-)
-
-ggsave("all_family_plot_20_adjusted.png", plot = last_plot(), width = 13, height = 6, dpi = 300)
-```
-
-#now, make a geom_bar of your relative abundance-Nozzle
-```{r}
-#graph
-ggplot(ps_family_nozzle_glommed, aes(x = ID, y = Abundance)) +
-  geom_bar(aes(fill = Family),stat = "identity") +
-  theme_minimal(base_size = 12) +
-  labs(title = "Relative Abundance of the Top 30 Families in Sampled Biofilms from Nozzles",x = "Sample",y = "Relative Abundance (%)") +
-  scale_fill_manual(values = palette_2) +
-  coord_flip()+
-  guides(fill = guide_legend(ncol = 2)) +
-  theme(
-axis.text.y = element_text(angle = 0, hjust = 1),
-axis.text.x = element_text(angle = 0),
-panel.background = element_rect(fill = "grey90", color = NA),
-strip.background = element_rect(fill = "grey85", color = NA)
-)
-
-ggsave("nozzles_family_plot_top30_adjusted.png", plot = last_plot(), width = 13, height = 6, dpi = 300)
-```
-
-#now, make a geom_bar of your relative abundance-Boom filter
-```{r}
-#graph
-ggplot(ps_family_boom_filter_glommed, aes(x = ID, y = Abundance)) +
-  geom_bar(aes(fill = Family), stat = "identity") +
-  theme_minimal(base_size = 12) +
-  facet_wrap(Date ~ ., strip.position = "right", ncol = 1, scales = "free_y")+
-  labs(title = "Relative Abundance of the Top 30 Families in Sampled Biofilms from Boom Filters", x = "Sample", y = "Relative Abundance (%)") +
-  scale_fill_manual(values = palette_2) +
-  coord_flip()+
-  guides(fill = guide_legend(ncol = 2)) +
-  theme(
-axis.text.y = element_text(angle = 0, hjust = 1),
-axis.text.x = element_text(angle = 0),
-strip.text.y = element_text(angle = 0),
-panel.background = element_rect(fill = "grey90", color = NA),
-strip.background = element_rect(fill = "grey85", color = NA)
-)
-
-ggsave("boom_filter_family_plot_top30_adjusted_.png", plot = last_plot(), width = 13, height = 6, dpi = 300)
-```
-
-#now, make a geom_bar of your relative abundance-Boom RP
-```{r}
-#graph
-ggplot(ps_family_boom_RL_glommed, aes(x = ID, y = Abundance)) +
-  geom_bar(aes(fill = Family), stat = "identity") +
-  facet_wrap(Date ~ ., strip.position = "right", ncol = 1, scales = "free_y")+
-  theme_minimal(base_size = 12) +
-  labs(title = "Relative Abundance of the Top 30 Families in Sampled Biofilms and Water Samples from Boom Recirculation Loop", x = "Sample", y = "Relative Abundance (%)") +
-  scale_fill_manual(values = palette_2) +
-  coord_flip()+
-  guides(fill = guide_legend(ncol = 2)) +
-  theme(
-axis.text.y = element_text(angle = 0, hjust = 1),
-axis.text.x = element_text(angle = 0),
-strip.text.y = element_text(angle = 0),
-panel.background = element_rect(fill = "grey90", color = NA),
-strip.background = element_rect(fill = "grey85", color = NA)
-)
-
-ggsave("boom_RL_family_plot_top30_adjusted.png", plot = last_plot(), width = 13, height = 6, dpi = 300)
-```
-
-#now, make a geom_bar of your relative abundance-Boom Filter and PEGs
-```{r}
-#graph
-ggplot(ps_family_boom_PEG_glommed, aes(x = ID, y = Abundance)) +
-  geom_bar(aes(fill = Family), stat = "identity") +
-  facet_wrap(Location ~ ., strip.position = "right", ncol = 1, scales = "free_y")+
-  theme_minimal(base_size = 12) +
-  labs(title = "Relative Abundance of the Top 30 Families Comparsion Between Boom Filter Swabs and PEG-Formed Biofilms", x = "Sample", y = "Relative Abundance (%)") +
-  scale_fill_manual(values = palette_2) +
-  coord_flip()+
-  guides(fill = guide_legend(ncol = 2)) +
-  theme(
-axis.text.y = element_text(angle = 0, hjust = 1),
-axis.text.x = element_text(angle = 0),
-strip.text.y = element_text(angle = 0),
-panel.background = element_rect(fill = "grey90", color = NA),
-strip.background = element_rect(fill = "grey85", color = NA)
-)
-
-ggsave("boom_PEG_family_plot_top30adjusted.png", plot = last_plot(), width = 13, height = 6, dpi = 300)
-```
-
-
-#if we want to do this for Genus
-
-#Now we want to look at the relative abundance of the genus level in the samples 
-#We need to glom together taxa in the genus column so we can graph them together.
-#then, we can take the relative abundance, will do for all samples
-#this will only plot the top 20/30 genera; any other genera not in the top 20/30 will be put in other
+#to calculate relative abundance at the genus level
 ```{r}
 ps_genus <- tax_glom(physeq_merge, "Genus")
 ps_genus_relabun <- transform_sample_counts(ps_genus, function(ASV) ASV / sum(ASV) * 100)
-
-taxa_abundance_table_genus <- psmelt(ps_genus_relabun)
-taxa_abundance_table_genus$Genus <- factor(taxa_abundance_table_genus$Genus)
 ```
-
 
 #Save the Abundance table for order for easy access
 ```{r}
-write.csv(taxa_abundance_table_genus, file = "C:/Users/cjm30/Bioinformatics/V4V5_metagenomics/McKellarV4V5/taxa_abundance_table_genus_V4V5_Nov7_top50_adjusted_2.csv") #change file path for personal computer
+taxa_abundance_table_genus <- psmelt(ps_genus_relabun)
+taxa_abundance_table_genus$Genus <- factor(taxa_abundance_table_genus$Genus)
+
+write.csv(taxa_abundance_table_genus, file = "C:/Users/cjm30/Bioinformatics/V4V5_metagenomics/McKellarV4V5/taxa_abundance_table_genus_V4V5_all.csv") #change file path for personal computer
 ```
 
-#all sample re-shuffle
+#this is an example for reorganizing the top 20 genera in all sample types, will assist with graphing
 ```{r}
-ps_genus_all <- subset_samples(ps_genus_relabun, Location %in% c("Boom Filter","Boom Filter_July", "Nozzle", "Boom Recirculation Loop"))
+#subset samples (if needed) from phyloseq object 
+ps_genus_all <- subset_samples(ps_genus_relabun, Location %in% c("Glass Bead Filters","Boom Filter","Boom Filter_July", "Nozzle", "Boom Recirculation Loop","Potable Water Tank"))
 
 #to reorder the samples to follow the desired order
+#Sorts from most abundant to least abundant; identify the top 20 genera
 top_genus_all <- names(sort(taxa_sums(ps_genus_all), decreasing = TRUE))[1:20]
+#convert top 20 names to character from ASV names
 top_genus_labels_all <- as.character(tax_table(ps_genus)[top_genus_all, "Genus"])
+#psmelt phyloseq object to factor/be able to graph in ggplot2
 ps_genus_all <- psmelt(ps_genus_all)
+#factor based on desired order or date
 ps_genus_all$ID <- factor(ps_genus_all$ID, levels = desired_order)
 ps_genus_all$Date <- factor(ps_genus_all$Date, levels = desired_date_order)
 
 #to reshuffle to only plot the top genera, the rest will go into "other"
+# will rename all genera not in the top 20 as "other"
 ps_genus_all$Genus <- ifelse(ps_genus_all$Genus %in% top_genus_labels_all, as.character(ps_genus_all$Genus), "Other")
-ps_genus_all$Genus <- factor(ps_genus_all$Genus, levels = c(setdiff(top_genus_labels_all, "Other"), "Other"))
-ps_genus_all_glommed <- ps_genus_all %>%
-  group_by(Sample, ID, Genus, Location, Date, Type) %>%
-  summarise(Abundance = sum(Abundance), .groups = "drop")
+#shifts the other category to appear last in the dataset so that it appears last in the graph
+ps_genus_all$Genus <- factor(ps_genus_all$Genus, levels = c(base::setdiff(top_genus_labels_all, "Other"), "Other"))
+#reorganize so that the ps_genus_all data.frame has six groups, based on the metadata and add the "other" entries into one entry, with the abundances, added together; make tibble
+ps_genus_all <- ps_genus_all %>%
+group_by(Sample, ID, Genus, Location, Date, Type) %>%
+summarise(Abundance = sum(Abundance), .groups = "drop")
 ```
 
-#can filter by location-nozzle
+#to generate a colour palette for graphs
 ```{r}
-ps_genus_nozzle <- subset_samples(ps_genus_relabun, Location == "Nozzle")
-
-#to reorder the samples to follow the desired order
-top_genus_nozzle <- names(sort(taxa_sums(ps_genus_nozzle), decreasing = TRUE))[1:30]
-top_genus_labels_nozzle <- as.character(tax_table(ps_genus)[top_genus_nozzle, "Genus"])
-ps_genus_nozzle <- psmelt(ps_genus_nozzle)
-ps_genus_nozzle$ID <- factor(ps_genus_nozzle$ID, levels = desired_order)
-
-#to reshuffle to only plot the top genera, the rest will go into "other"
-ps_genus_nozzle$Genus <- ifelse(ps_genus_nozzle$Genus %in% top_genus_labels_nozzle, as.character(ps_genus_nozzle$Genus), "Other")
-ps_genus_nozzle$Genus <- factor(ps_genus_nozzle$Genus, levels = c(setdiff(top_genus_labels_nozzle, "Other"), "Other"))
-ps_genus_nozzle_glommed <- ps_genus_nozzle %>%
-  group_by(Sample,ID, Genus, Location, Date, Type) %>%
-  summarise(Abundance = sum(Abundance), .groups = "drop")
-```
-#boom filter
-```{r}
-ps_genus_boom_filter <- subset_samples(ps_genus_relabun, Location %in% c("Boom Filter", "Boom Filter_July"))
-
-#to reorder the samples to follow the desired order
-top_genus_boom_filter <- names(sort(taxa_sums(ps_genus_boom_filter), decreasing = TRUE))[1:30]
-top_genus_labels_boom_filter <- as.character(tax_table(ps_genus)[top_genus_boom_filter, "Genus"])
-ps_genus_boom_filter <- psmelt(ps_genus_boom_filter)
-ps_genus_boom_filter$ID <- factor(ps_genus_boom_filter$ID, levels = desired_order)
-ps_genus_boom_filter$Date <- factor(ps_genus_boom_filter$Date, levels = desired_date_order)
-
-#to reshuffle to only plot the top genera, the rest will go into "other"
-ps_genus_boom_filter$Genus <- ifelse(ps_genus_boom_filter$Genus %in% top_genus_labels_boom_filter, as.character(ps_genus_boom_filter$Genus), "Other")
-ps_genus_boom_filter$Genus <- factor(ps_genus_boom_filter$Genus, levels = c(setdiff(top_genus_labels_boom_filter, "Other"), "Other"))
-ps_genus_boom_filter_glommed <- ps_genus_boom_filter %>%
-  group_by(Sample,ID, Genus, Location, Date, Type) %>%
-  summarise(Abundance = sum(Abundance), .groups = "drop")
-```
-
-#boom filters and PEG
-```{r}
-ps_genus_boom_PEG <- subset_samples(ps_genus_relabun, Location %in% c("Boom Filter_July", "PEG"))
-
-#to reorder the samples to follow the desired order
-top_genus_boom_PEG <- names(sort(taxa_sums(ps_genus_boom_PEG), decreasing = TRUE))[1:30]
-top_genus_labels_boom_PEG <- as.character(tax_table(ps_genus)[top_genus_boom_PEG, "Genus"])
-ps_genus_boom_PEG <- psmelt(ps_genus_boom_PEG)
-ps_genus_boom_PEG$ID <- factor(ps_genus_boom_PEG$ID, levels = desired_order)
-
-#to reshuffle to only plot the top  genera, the rest will go into "other"
-ps_genus_boom_PEG$Genus <- ifelse(ps_genus_boom_PEG$Genus %in% top_genus_labels_boom_PEG, as.character(ps_genus_boom_PEG$Genus), "Other")
-ps_genus_boom_PEG$Genus <- factor(ps_genus_boom_PEG$Genus, levels = c(setdiff(top_genus_labels_boom_PEG, "Other"), "Other"))
-ps_genus_boom_PEG_glommed <- ps_genus_boom_PEG %>%
-  group_by(Sample,ID, Genus, Location, Date, Type) %>%
-  summarise(Abundance = sum(Abundance), .groups = "drop")
-```
-
-#boom recirculation loop
-```{r}
-ps_genus_boom_RL <- subset_samples(ps_genus_relabun, Location == "Boom Recirculation Loop")
-
-#to reorder the samples to follow the desired order
-top_genus_boom_RL <- names(sort(taxa_sums(ps_genus_boom_RL), decreasing = TRUE))[1:30]
-top_genus_labels_boom_RL <- as.character(tax_table(ps_genus)[top_genus_boom_RL, "Genus"])
-ps_genus_boom_RL <- psmelt(ps_genus_boom_RL)
-ps_genus_boom_RL$ID <- factor(ps_genus_boom_RL$ID, levels = desired_order)
-ps_genus_boom_RL$Date <- factor(ps_genus_boom_RL$Date, levels = desired_date_order)
-
-#to reshuffle to only plot the top genera, the rest will go into "other"
-ps_genus_boom_RL$Genus <- ifelse(ps_genus_boom_RL$Genus %in% top_genus_labels_boom_RL, as.character(ps_genus_boom_RL$Genus), "Other")
-ps_genus_boom_RL$Genus <- factor(ps_genus_boom_RL$Genus, levels = c(setdiff(top_genus_labels_boom_RL, "Other"), "Other"))
-ps_genus_boom_RL_glommed <- ps_genus_boom_RL %>%
-  group_by(Sample,ID, Genus, Location, Date, Type) %>%
-  summarise(Abundance = sum(Abundance), .groups = "drop")
-```
-
-#to generate a colour palette for all graph
-```{r}
-# Get unique genus-to help make colour
 palette <- c(
   "#A6CEE3", "#1F78B4", "#B2DF8A", "#33A02C", "#FB9A99",
   "#E31A1C", "#FDBF6F", "#FF7F00", "#CAB2D6", "#6A3D9A",
@@ -963,132 +535,29 @@ palette <- c(
   "#FB8072", "#80B1D3", "#FDB462", "#B3DE69", "#FCCDE5",
   "#cccccc" 
 )
-
-palette_2 <- c(
-  "#A6CEE3", "#1F78B4", "#B2DF8A", "#33A02C", "#FB9A99", "#E31A1C", "#FDBF6F", "#FF7F00",
-  "#CAB2D6", "#6A3D9A", "#FFFF99", "#B15928", "#8DD3C7", "#FFFFB3", "#BEBADA", "#FB8072",
-  "#80B1D3", "#FDB462", "#B3DE69", "#FCCDE5", "#D9D9D9", "#BC80BD", "#CCEBC5", "#FFED6F",
-  "#1B9E77", "#D95F02", "#7570B3", "#E7298A", "#66A61E", "#E6AB02",
-  "#cccccc"
-)
 ```
 
-#genus graph-will all samples
+#this is an example graph for the top 20 genera in all sample
 ```{r}
-#graph
-ggplot(ps_genus_all_glommed, aes(x = ID, y = Abundance)) +
-  geom_bar(aes(fill = Genus), stat = "identity") +
-  facet_wrap(Date ~ ., strip.position = "right", ncol = 1, scales = "free_y", space = "free_y")+
-  theme_minimal(base_size = 12) +
-  labs(title = "Relative Abundance of Top 20 Genera in All Sampled Biofilms and Water Samples from All Locations", x = "Sample",y = "Relative Abundance (%)") +
-  scale_fill_manual(values = palette)+
-  coord_flip()+
-  guides(fill = guide_legend(ncol = 2))+
-  theme(
-axis.text.y = element_text(angle = 0, hjust = 1),
-axis.text.x = element_text(angle = 0),
-strip.text.y = element_text(angle = 0),
-panel.background = element_rect(fill = "grey90", color = NA),
-strip.background = element_rect(fill = "grey85", color = NA)
+ggplot(ps_genus_all, aes(x = ID, y = Abundance)) +
+geom_bar(aes(fill = Genus), stat = "identity", position = position_stack(reverse = TRUE)) +
+facet_wrap(Date ~ ., strip.position = "right", ncol = 1, scales = "free_y", space = "free_y")+
+theme_minimal(base_size = 12) +
+labs(title = "Relative Abundance of Top 20 Genera in All Sampled Biofilms and Water Samples from All Locations", x = "Sample",y = "Relative Abundance (%)") +
+scale_fill_manual(values = palette)+
+coord_flip()+
+guides(fill = guide_legend(ncol = 2))+
+theme(
+  axis.text.y = element_text(angle = 0, hjust = 1),
+  axis.text.x = element_text(angle = 0),
+  strip.text.y = element_text(angle = 0),
+  panel.background = element_rect(fill = "grey95", color = NA),
+  strip.background = element_rect(fill = "grey85", color = NA)
 )
 
-ggsave("all_genus_plot_20_adjusted.png", plot = last_plot(), width = 13, height = 6, dpi = 300)
+#to save graph
+ggsave("all_genus_plot_20_aug27.png", plot = last_plot(), width = 13, height = 6, dpi = 300)
 ```
 
-#now, make a geom_bar of your relative abundance-Nozzle
-```{r}
-#graph
-ggplot(ps_genus_nozzle_glommed, aes(x = ID, y = Abundance)) +
-  geom_bar(aes(fill = Genus),stat = "identity") +
-  theme_minimal(base_size = 12) +
-  labs(title = "Relative Abundance of the Top 30 Genera in Sampled Biofilms from Nozzles",x = "Sample",y = "Relative Abundance (%)") +
-  scale_fill_manual(values = palette_2) +
-  coord_flip()+
-  guides(fill = guide_legend(ncol = 2)) +
-  theme(
-axis.text.y = element_text(angle = 0, hjust = 1),
-axis.text.x = element_text(angle = 0),
-panel.background = element_rect(fill = "grey90", color = NA),
-strip.background = element_rect(fill = "grey85", color = NA)
-)
-
-ggsave("nozzles_genus_plot_top30_adjusted.png", plot = last_plot(), width = 13, height = 6, dpi = 300)
-```
-
-#now, make a geom_bar of your relative abundance-Boom filter
-```{r}
-#graph
-ggplot(ps_genus_boom_filter_glommed, aes(x = ID, y = Abundance)) +
-  geom_bar(aes(fill = Genus), stat = "identity") +
-  theme_minimal(base_size = 12) +
-  facet_wrap(Date ~ ., strip.position = "right", ncol = 1, scales = "free_y")+
-  labs(title = "Relative Abundance of the Top 30 Genera in Sampled Biofilms from Boom Filters", x = "Sample", y = "Relative Abundance (%)") +
-  scale_fill_manual(values = palette_2) +
-  coord_flip()+
-  guides(fill = guide_legend(ncol = 2)) +
-  theme(
-axis.text.y = element_text(angle = 0, hjust = 1),
-axis.text.x = element_text(angle = 0),
-strip.text.y = element_text(angle = 0),
-panel.background = element_rect(fill = "grey90", color = NA),
-strip.background = element_rect(fill = "grey85", color = NA)
-)
-
-ggsave("boom_filter_genus_plot_top30_adjusted_.png", plot = last_plot(), width = 13, height = 6, dpi = 300)
-```
-
-#now, make a geom_bar of your relative abundance-Boom RP
-```{r}
-#graph
-ggplot(ps_genus_boom_RL_glommed, aes(x = ID, y = Abundance)) +
-  geom_bar(aes(fill = Genus), stat = "identity") +
-  facet_wrap(Date ~ ., strip.position = "right", ncol = 1, scales = "free_y")+
-  theme_minimal(base_size = 12) +
-  labs(title = "Relative Abundance of the Top 30 Genera in Sampled Biofilms and Water Samples from Boom Recirculation Loop", x = "Sample", y = "Relative Abundance (%)") +
-  scale_fill_manual(values = palette_2) +
-  coord_flip()+
-  guides(fill = guide_legend(ncol = 2)) +
-  theme(
-axis.text.y = element_text(angle = 0, hjust = 1),
-axis.text.x = element_text(angle = 0),
-strip.text.y = element_text(angle = 0),
-panel.background = element_rect(fill = "grey90", color = NA),
-strip.background = element_rect(fill = "grey85", color = NA)
-)
-
-ggsave("boom_RL_genus_plot_top30_adjusted.png", plot = last_plot(), width = 13, height = 6, dpi = 300)
-```
-
-#now, make a geom_bar of your relative abundance-Boom Filter and PEGs
-```{r}
-#graph
-ggplot(ps_genus_boom_PEG_glommed, aes(x = ID, y = Abundance)) +
-  geom_bar(aes(fill = Genus), stat = "identity") +
-  facet_wrap(Location ~ ., strip.position = "right", ncol = 1, scales = "free_y")+
-  theme_minimal(base_size = 12) +
-  labs(title = "Relative Abundance of the Top 30 Genera Comparsion Between Boom Filter Swabs and PEG-Formed Biofilms", x = "Sample", y = "Relative Abundance (%)") +
-  scale_fill_manual(values = palette_2) +
-  coord_flip()+
-  guides(fill = guide_legend(ncol = 2)) +
-  theme(
-axis.text.y = element_text(angle = 0, hjust = 1),
-axis.text.x = element_text(angle = 0),
-strip.text.y = element_text(angle = 0),
-panel.background = element_rect(fill = "grey90", color = NA),
-strip.background = element_rect(fill = "grey85", color = NA)
-)
-
-ggsave("boom_PEG_genus_plot_top30adjusted.png", plot = last_plot(), width = 13, height = 6, dpi = 300)
-```
-
-##end of code
-
-
-
-
-
-
-
-
-
+#end of code
 
